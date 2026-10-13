@@ -49,21 +49,28 @@ Specialized in register-level **Embedded C (C99)**, **ARM Cortex-M4 (STM32F446RE
 
 ## 🏆 Featured Production Repositories (STM32 NUCLEO-F446RE & Automotive)
 
-### 🚗 1. [stm32-automotive-uds-isotp-node](https://github.com/sherifred-singh/stm32-automotive-uds-isotp-node)
+### 🌐 1. [stm32-esp32-industrial-edge-controller](https://github.com/sherifred-singh/stm32-esp32-industrial-edge-controller)
+> **Distributed Dual-MCU Industrial IoT Edge Controller & Gateway (STM32F446RE + ESP32-S3 FreeRTOS)**
+* **Architectural Partitioning:** Real-time deterministic sensor acquisition and actuator safety on ARM Cortex-M4 (STM32F446RE @ 180 MHz), offloading wireless BLE 5.0 diagnostics and MQTT telemetry to dual-core ESP32-S3.
+* **Deterministic DMA Protocol:** Circular DMA UART with hardware IDLE line interrupt, fast 256-entry CRC-16-CCITT table verification, and compile-time struct static assertions.
+* **Fail-Safe Actuation & E-Stop:** Sub-millisecond physical shutdown directly cutting `TIM1->BDTR` Main Output Enable (MOE), clearing PWM duty to 0%, and releasing relay coils.
+* **Verification & CI/CD:** 7/7 Native C99 unit tests + 6/6 Python protocol stress tests running in automated GitHub Actions CI.
+
+### 🚗 2. [stm32-automotive-uds-isotp-node](https://github.com/sherifred-singh/stm32-automotive-uds-isotp-node)
 > **Production ISO 14229-1 (UDS) Server & ISO 15765-2 (DoCAN) Transport Layer on STM32F446RE (ARM Cortex-M4 @ 180 MHz)**
 * Full ISO 15765-2 DoCAN network layer handling Single Frame, First Frame, Flow Control (with `BS` and `STmin`), and Consecutive Frames with strict timeout monitoring (`N_Bs`, `N_Cr`).
 * Complete ISO 14229-1 UDS diagnostic server supporting services `0x10`, `0x11`, `0x14`, `0x19`, `0x22`, `0x27` (with 3-attempt lockout), `0x2E`, `0x31`, and `0x3E`.
 * Hardware bxCAN peripheral driver configured at 500 kbps with dual 32-bit hardware identifier filtering.
 * **Verification:** 15/15 Unity C unit tests passing + 9/9 Python diagnostic client validation tests.
 
-### ⚙️ 2. [stm32-dsp-vibration-spectral-analyzer](https://github.com/sherifred-singh/stm32-dsp-vibration-spectral-analyzer)
+### ⚙️ 3. [stm32-dsp-vibration-spectral-analyzer](https://github.com/sherifred-singh/stm32-dsp-vibration-spectral-analyzer)
 > **Real-Time 1024-Point Real FFT & Ping-Pong DMA Edge DSP Engine on STM32F446RE FPU**
 * Continuous 50 kHz accelerometer sampling triggered via TIM2 TRGO into ADC1 with zero CPU overhead using DMA2 Stream 0 double-buffering.
 * 1024-point Real FFT decomposition on ARM Cortex-M4 hardware FPU executing in under 1.1 ms (5.3% CPU budget).
 * Raised-cosine Hanning windowing, parabolic sub-bin peak interpolation, Total Harmonic Distortion (THD %) computation, and automated ISO 10816-3 machinery vibration health evaluation.
 * **Verification:** 7/7 Unity C unit tests + Python real-time spectral waterfall viewer tool.
 
-### 🛡️ 3. [stm32-failsafe-iap-bootloader](https://github.com/sherifred-singh/stm32-failsafe-iap-bootloader)
+### 🛡️ 4. [stm32-failsafe-iap-bootloader](https://github.com/sherifred-singh/stm32-failsafe-iap-bootloader)
 > **Brick-Proof Dual-Slot In-Application Programming (IAP) Bootloader on STM32F446RE (512 KB Flash)**
 * Asymmetric NOR Flash partitioning (Slot A: 192 KB, Slot B: 256 KB) strictly aligned to physical erase sector boundaries.
 * Hardware CRC-32 accelerator (`0x04C11DB7`) over entire image payload with structured 40-byte `image_header_t`.
@@ -71,16 +78,16 @@ Specialized in register-level **Embedded C (C99)**, **ARM Cortex-M4 (STM32F446RE
 * Watchdog probation window (`SLOT_STATE_TESTING`) with automatic rollback to alternate slot if firmware crashes repeatedly.
 * **Verification:** 10/10 Unity C unit tests + Python IAP packager and UART flasher utility.
 
-### 🔋 4. [pytest-bms-diagnostic-framework](https://github.com/sherifred-singh/pytest-bms-diagnostic-framework)
+### 🔋 5. [pytest-bms-diagnostic-framework](https://github.com/sherifred-singh/pytest-bms-diagnostic-framework)
 > **Automotive EV Battery Management System (BMS) Diagnostic Test Automation in Python**
 * Production Pytest test harness validating cell balancing, overvoltage/undervoltage thresholds, thermal runaway alerts, and UDS diagnostic routines.
 * Automated CAN bus telemetry decoding, log assertions, and test report generation.
 
-### 🐧 5. [linux-telemetry-char-driver](https://github.com/sherifred-singh/linux-telemetry-char-driver)
+### 🐧 6. [linux-telemetry-char-driver](https://github.com/sherifred-singh/linux-telemetry-char-driver)
 > **Linux Kernel Character Device Driver with Concurrency Control & Ring Buffering**
 * Kernel character driver with non-blocking I/O, wait queues, mutex concurrency protection, and ioctl telemetry control.
 
-### 🏎️ 6. [automotive-tft-cluster](https://github.com/sherifred-singh/automotive-tft-cluster)
+### 🏎️ 7. [automotive-tft-cluster](https://github.com/sherifred-singh/automotive-tft-cluster)
 > **Real-Time Automotive Digital Instrument Cluster with High-Speed CAN Bus Ingestion**
 * High-performance instrument cluster displaying real-time speed, RPM, battery telemetry, and ISO warning telltales.
 
