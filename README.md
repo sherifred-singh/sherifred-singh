@@ -97,6 +97,9 @@ Specialized in register-level **Embedded C (C99)**, **ARM Cortex-M4 (STM32F446RE
 
 * ⭐ **[embedded-c-ring-buffer](https://github.com/sherifred-singh/embedded-c-ring-buffer)** — Lock-free, thread-safe FIFO circular ring buffer in C99 for UART/SPI ISR-to-main communication.
 * ⭐ **[embedded-fsm-engine](https://github.com/sherifred-singh/embedded-fsm-engine)** — Table-driven Finite State Machine (FSM) framework with an Automatic Transfer Switch (ATS) industrial model.
+* ⭐ **[embedded-software-timer](https://github.com/sherifred-singh/embedded-software-timer)** — Deterministic software timer service with delta-tick queue management and sub-millisecond precision.
+* ⭐ **[smart-industrial-disinfection-controller](https://github.com/sherifred-singh/smart-industrial-disinfection-controller)** — Industrial multi-phase ozone & UV-C sterilization system with Modbus RTU telemetry and safety interlocks.
+* ⭐ **[stm32-can-telemetry-prototype](https://github.com/sherifred-singh/stm32-can-telemetry-prototype)** — Automotive bxCAN 500 kbps telemetry acquisition, hardware acceptance filtering, and safety heartbeat monitor.
 * ⭐ **[stm32-freertos-sensor-hub](https://github.com/sherifred-singh/stm32-freertos-sensor-hub)** — Multi-tasking sensor acquisition and telemetry with FreeRTOS queues, mutexes, and watchdog supervision on STM32.
 * ⭐ **[industrial-sensor-hal](https://github.com/sherifred-singh/industrial-sensor-hal)** — Decoupled sensor driver library for MAX6675 (SPI), DS18B20 (1-Wire with CRC8), and NTC ADC LUT interpolation.
 * ⭐ **[modbus-rtu-slave-c](https://github.com/sherifred-singh/modbus-rtu-slave-c)** — Lightweight Modbus-RTU slave protocol stack with fast table CRC-16 for RS-485 industrial networks.
