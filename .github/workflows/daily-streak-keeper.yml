@@ -1,0 +1,40 @@
+name: Daily Embedded Ecosystem Telemetry & Streak Keeper
+
+on:
+  schedule:
+    # 03:30 UTC = 09:00 AM IST daily
+    - cron: '30 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  telemetry-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Profile Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run Telemetry Audit
+        run: |
+          python scripts/update_telemetry.py
+
+      - name: Commit and Push Daily Telemetry Update
+        run: |
+          git config --global user.name "Sherifred singh"
+          git config --global user.email "ssherifred@gmail.com"
+          git add telemetry/
+          if git diff --staged --quiet; then
+            echo "Telemetry is already up to date for today."
+          else
+            git commit -m "chore(telemetry): daily embedded ecosystem health check [skip ci]" --author="Sherifred singh <ssherifred@gmail.com>"
+            git push origin main
+          fi
