@@ -132,12 +132,12 @@ Specialized in register-level **Embedded C (C99)**, **ARM Cortex-M4 (STM32F446RE
     <tr>
       <td align="center" valign="middle">
         <a href="https://github.com/sherifred-singh">
-          <img src="https://streak-stats.demolab.com?user=sherifred-singh&theme=tokyonight&hide_border=true&date_format=j%20M%5B%20Y%5D" height="145" alt="GitHub Streak" />
+          <img src="https://streak-stats.demolab.com?user=sherifred-singh&theme=tokyonight&hide_border=true&date_format=j%20M%5B%20Y%5D&v=1016" height="145" alt="GitHub Streak" />
         </a>
       </td>
       <td align="center" valign="middle">
         <a href="https://github.com/sherifred-singh">
-          <img src="https://github-profile-summary-cards.vercel.app/api/cards/profile-details?username=sherifred-singh&theme=tokyonight" height="145" alt="GitHub Profile Details" />
+          <img src="https://github-profile-summary-cards.vercel.app/api/cards/profile-details?username=sherifred-singh&theme=tokyonight&v=1016" height="145" alt="GitHub Profile Details" />
         </a>
       </td>
     </tr>
