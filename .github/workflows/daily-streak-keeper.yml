@@ -2,7 +2,9 @@ name: Daily Embedded Ecosystem Telemetry & Streak Keeper
 
 on:
   schedule:
-    # Morning Run: 03:17 UTC = 08:47 AM IST
+    # Early Morning Buffer: 02:23 UTC = 07:53 AM IST (absorbs GitHub runner queue delay)
+    - cron: '23 2 * * *'
+    # Morning Trigger: 03:17 UTC = 08:47 AM IST
     - cron: '17 3 * * *'
     # Evening Backup: 11:43 UTC = 05:13 PM IST
     - cron: '43 11 * * *'
@@ -33,7 +35,7 @@ jobs:
         run: |
           git config --global user.name "Sherifred singh"
           git config --global user.email "ssherifred@gmail.com"
-          git add telemetry/
+          git add telemetry/ README.md
           if git diff --staged --quiet; then
             echo "Telemetry is already up to date for today."
           else

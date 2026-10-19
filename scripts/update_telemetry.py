@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from datetime import datetime, timezone, timedelta
 
 def main():
@@ -52,6 +53,18 @@ def main():
         for repo in telemetry_data["monitored_repositories"]:
             f.write(f"| [`{repo['name']}`](https://github.com/sherifred-singh/{repo['name']}) | {repo['category']} | ✅ `{repo['status']}` |\n")
         f.write("\n---\n*Auto-generated daily by GitHub Actions cron scheduler at 09:00 AM IST to maintain live ecosystem verification and GitHub contribution continuity.*\n")
+
+    # Auto-update cache busters in main profile README.md
+    readme_path = "README.md"
+    if os.path.exists(readme_path):
+        with open(readme_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        cache_buster = ist_now.strftime("%m%d")
+        new_content = re.sub(r'(&v=)\d+', rf'\g<1>{cache_buster}', content)
+        if new_content != content:
+            with open(readme_path, "w", encoding="utf-8") as f:
+                f.write(new_content)
+            print(f"Updated README.md badge cache buster to v={cache_buster}")
 
     print(f"Telemetry successfully generated for {ist_now.strftime('%Y-%m-%d %H:%M:%S IST')}")
 
