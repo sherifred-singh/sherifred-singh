@@ -34,12 +34,13 @@ def main():
         }
     }
 
-    os.makedirs("telemetry", exist_ok=True)
-    json_path = os.path.join("telemetry", "ecosystem_status.json")
+    REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    os.makedirs(os.path.join(REPO_ROOT, "telemetry"), exist_ok=True)
+    json_path = os.path.join(REPO_ROOT, "telemetry", "ecosystem_status.json")
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(telemetry_data, f, indent=2)
 
-    md_path = os.path.join("telemetry", "README.md")
+    md_path = os.path.join(REPO_ROOT, "telemetry", "README.md")
     with open(md_path, "w", encoding="utf-8") as f:
         f.write("# 📡 Embedded Firmware Ecosystem Telemetry\n\n")
         f.write(f"**Last Automated Verification:** `{ist_now.strftime('%d-%b-%Y %I:%M:%S %p IST')}` (`{utc_now.strftime('%Y-%m-%d %H:%M:%S UTC')}`)\n\n")
@@ -55,7 +56,7 @@ def main():
         f.write("\n---\n*Auto-generated daily by GitHub Actions cron scheduler at 09:00 AM IST to maintain live ecosystem verification and GitHub contribution continuity.*\n")
 
     # Auto-update cache busters in main profile README.md
-    readme_path = "README.md"
+    readme_path = os.path.join(REPO_ROOT, "README.md")
     if os.path.exists(readme_path):
         with open(readme_path, "r", encoding="utf-8") as f:
             content = f.read()
