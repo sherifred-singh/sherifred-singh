@@ -109,16 +109,16 @@ Specialized in register-level **Embedded C (C99)**, **ARM Cortex-M4 (STM32F446RE
 
 ## 🏭 Commercial Products & Track Record
 
+### 🔹 24-Loom Textile Production Monitor
+**Target:** PIC18 / STM32 • **Status:** Commercial Product *(Source Code Confidential)*  
+* Edge monitoring and logging system deployed across industrial weaving facilities collecting shift-wise metrics from 24 looms simultaneously.
+* Built a power-fail-safe state snapshotting mechanism to EEPROM with RTC (DS3231) timestamping.
+
 ### 🔹 Automatic Transfer Switch (ATS) Controller
 **Target:** Microchip PIC18 • **Status:** Commercial Product *(Source Code Confidential)*  
 * Industrial power automation controller for automated, fail-safe switching between mains grid and backup generator.
 * Implemented multi-state generator & mains transfer logic with strict *break-before-make* relay interlocking.
 * Configured calibrated ADC sampling for rapid undervoltage, overvoltage, and phase-imbalance detection with persistent EEPROM fault logging.
-
-### 🔹 16-Loom Textile Production Monitor
-**Target:** PIC18 / STM32 • **Status:** Commercial Product *(Source Code Confidential)*  
-* Edge monitoring and logging system deployed across industrial weaving facilities collecting shift-wise metrics from 16 looms simultaneously.
-* Built a power-fail-safe state snapshotting mechanism to EEPROM with RTC (DS3231) timestamping.
 
 ### 🔹 Multi-Stage Industrial Temperature Controller
 **Target:** PIC18F46K22 • **Status:** Commercial Product *(Source Code Confidential)*  
