@@ -114,7 +114,7 @@ Senior Embedded Systems Engineer with **6.7+ years of production experience** de
 
 ## 📂 Core Firmware Modules & Driver Architecture (Open Source)
 
-* 📘 **[c-programming-interview-preparation](https://github.com/sherifred-singh/c-programming-interview-preparation)** — Automated 30-Day Master Embedded C Interview & Architecture Suite (Bitwise macros, memory alignment, pointer scaling, volatile rules, and RTOS mechanics).
+* 📘 **[c-programming-interview-preparation](https://github.com/sherifred-singh/c-programming-interview-preparation)** — 30-Day Master Embedded C Interview & Architecture Suite (Bitwise macros, memory alignment, pointer scaling, volatile rules, and RTOS mechanics).
 * ⭐ **[embedded-c-ring-buffer](https://github.com/sherifred-singh/embedded-c-ring-buffer)** — Lock-free, thread-safe FIFO circular ring buffer in C99 for UART/SPI ISR-to-main communication.
 * ⭐ **[embedded-fsm-engine](https://github.com/sherifred-singh/embedded-fsm-engine)** — Table-driven Finite State Machine (FSM) framework with an Automatic Transfer Switch (ATS) industrial model.
 * ⭐ **[embedded-software-timer](https://github.com/sherifred-singh/embedded-software-timer)** — Deterministic software timer service with delta-tick queue management and sub-millisecond precision.
