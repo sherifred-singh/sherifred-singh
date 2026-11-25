@@ -1,11 +1,12 @@
 """Rotating 7-day GitHub portfolio & embedded ecosystem auditing engine.
 
 Replaces identical daily timestamp updates with a live, GitHub-API-driven
-7-day engineering audit cycle (Monday-Sunday) and a smart contribution check
+7-day engineering audit cycle (anchored to 2026-11-25 = Day 1) and a smart contribution check
 that avoids duplicate automated commits on days with manual coding activity.
 """
 
 import argparse
+import html as html_lib
 import json
 import os
 import re
@@ -13,11 +14,12 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
 GITHUB_USER = "sherifred-singh"
+CYCLE_ANCHOR_DATE = date(2026, 11, 25)  # Day 1 starts on 2026-11-25 (Wednesday)
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TELEMETRY_DIR = REPO_ROOT / "telemetry"
 HISTORY_DIR = TELEMETRY_DIR / "history"
@@ -48,6 +50,11 @@ def get_ist_utc_now() -> tuple[datetime, datetime]:
     utc_now = datetime.now(timezone.utc)
     ist_tz = timezone(timedelta(hours=5, minutes=30))
     return utc_now, utc_now.astimezone(ist_tz)
+
+
+def get_cycle_day(ist_now: datetime) -> int:
+    """Return 1-based 7-day cycle index anchored on CYCLE_ANCHOR_DATE (2026-11-25 = Day 1)."""
+    return ((ist_now.date() - CYCLE_ANCHOR_DATE).days % 7) + 1
 
 
 def _github_headers(include_auth: bool = True) -> dict[str, str]:
@@ -96,10 +103,72 @@ def fetch_text(url: str, timeout: int = 12, use_browser_ua: bool = False) -> str
         return resp.read().decode("utf-8", errors="ignore")
 
 
+def _fetch_user_profile() -> dict[str, Any]:
+    """Fetch public profile summary via REST API, falling back to web HTML on rate limit."""
+    try:
+        return github_api_get(f"/users/{GITHUB_USER}")
+    except Exception:
+        page = fetch_text(f"https://github.com/{GITHUB_USER}", use_browser_ua=True)
+        followers = re.search(r'>\s*(\d+)\s*</span>\s*followers', page, re.I)
+        following = re.search(r'>\s*(\d+)\s*</span>\s*following', page, re.I)
+        repos_cnt = re.search(r'Repositories\s*<span[^>]*class="Counter"[^>]*>(\d+)<', page, re.I)
+        return {
+            "public_repos": int(repos_cnt.group(1)) if repos_cnt else 0,
+            "followers": int(followers.group(1)) if followers else 0,
+            "following": int(following.group(1)) if following else 0,
+        }
+
+
+def _fetch_repos_from_web() -> list[dict[str, Any]]:
+    """Fallback parser for https://github.com/<user>?tab=repositories when REST API is rate-limited."""
+    repos: list[dict[str, Any]] = []
+    for page_num in (1, 2):
+        page_html = fetch_text(
+            f"https://github.com/{GITHUB_USER}?page={page_num}&tab=repositories",
+            use_browser_ua=True,
+        )
+        blocks = page_html.split('<li class="col-12 d-flex')[1:]
+        if not blocks:
+            break
+        for blk in blocks:
+            if "forked from" in blk.lower():
+                continue
+            name_m = re.search(r'itemprop="name codeRepository"[^>]*>\s*([^<\s]+)', blk)
+            if not name_m:
+                continue
+            name = name_m.group(1).strip()
+            lang_m = re.search(r'itemprop="programmingLanguage">([^<]+)<', blk)
+            desc_m = re.search(r'itemprop="description">\s*(.*?)\s*</p>', blk, re.DOTALL)
+            dt_m = re.search(r'<relative-time[^>]*datetime="([^"]+)"', blk)
+            stars_m = re.search(r'/stargazers"[^>]*>[\s\S]*?</svg>\s*(\d+)', blk)
+            forks_m = re.search(r'/forks"[^>]*>[\s\S]*?</svg>\s*(\d+)', blk)
+            repos.append({
+                "name": name,
+                "fork": False,
+                "html_url": f"https://github.com/{GITHUB_USER}/{name}",
+                "default_branch": "master" if name in {"Awesome-Embedded", "theEmbeddedNewTestament.github.io"} else "main",
+                "language": lang_m.group(1).strip() if lang_m else None,
+                "description": html_lib.unescape(re.sub(r"\s+", " ", desc_m.group(1)).strip()) if desc_m else None,
+                "pushed_at": dt_m.group(1) if dt_m else "",
+                "stargazers_count": int(stars_m.group(1)) if stars_m else 0,
+                "forks_count": int(forks_m.group(1)) if forks_m else 0,
+                "open_issues_count": 0,
+                "size": 0,
+                "license": {"key": "present"} if "octicon-law" in blk else None,
+            })
+        if f'page={page_num + 1}&amp;tab=repositories' not in page_html and f'page={page_num + 1}&tab=repositories' not in page_html:
+            break
+    return repos
+
+
 def fetch_all_repos() -> list[dict[str, Any]]:
-    """Retrieve all public repositories for GITHUB_USER sorted by latest push."""
-    repos = github_api_get(f"/users/{GITHUB_USER}/repos?per_page=100&sort=pushed")
-    return [r for r in repos if not r.get("fork")]
+    """Retrieve all public non-fork repositories, falling back to web HTML if rate-limited."""
+    try:
+        repos = github_api_get(f"/users/{GITHUB_USER}/repos?per_page=100&sort=pushed")
+        return [r for r in repos if not r.get("fork")]
+    except Exception as exc:
+        print(f"API fallback -> parsing web repositories tab ({exc})", file=sys.stderr)
+        return _fetch_repos_from_web()
 
 
 def filter_embedded_repos(repos: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -141,6 +210,27 @@ def has_contributed_today(utc_now: datetime) -> tuple[bool, str]:
     return False, f"No contribution recorded yet for {today_utc} UTC"
 
 
+def _fetch_ci_from_web(repo_name: str) -> dict[str, str] | None:
+    """Fallback parser for /<user>/<repo>/actions HTML when REST API is rate-limited."""
+    actions_html = fetch_text(f"https://github.com/{GITHUB_USER}/{repo_name}/actions", use_browser_ua=True)
+    pattern = re.compile(
+        r'"workflowFilePath":"([^"]+)","runUrl":"([^"]+)","title":"[^"]*","workflowName":"([^"]+)",'
+        r'"state":\{"status":"[^"]*","conclusion":"([^"]+)"\},"createdAt":\{"timestamp":"([^"]+)"'
+    )
+    for match in pattern.finditer(actions_html):
+        wf_path, run_url, wf_name, conclusion_raw, ts = match.groups()
+        if "pages-build-deployment" in wf_name or "dynamic/pages" in wf_path:
+            continue
+        conclusion = conclusion_raw.replace("WORKFLOW_RUN_CONCLUSION_", "").lower()
+        return {
+            "workflow": wf_name.encode("utf-8").decode("unicode_escape"),
+            "conclusion": conclusion,
+            "last_run_utc": ts,
+            "run_url": run_url,
+        }
+    return None
+
+
 def audit_embedded_ci(embedded_repos: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Query latest GitHub Actions run for each embedded firmware repository."""
     results = []
@@ -158,24 +248,37 @@ def audit_embedded_ci(embedded_repos: list[dict[str, Any]]) -> tuple[list[dict[s
             "last_run_utc": "N/A",
             "run_url": repo.get("html_url", ""),
         }
+        run_info: dict[str, str] | None = None
         try:
             data = github_api_get(f"/repos/{GITHUB_USER}/{name}/actions/runs?per_page=1")
             runs = data.get("workflow_runs", [])
             if runs:
                 run = runs[0]
-                conclusion = run.get("conclusion") or run.get("status") or "unknown"
-                entry["workflow"] = run.get("name") or "CI"
-                entry["status"] = conclusion.upper()
-                entry["last_run_utc"] = run.get("created_at", "N/A")
-                entry["run_url"] = run.get("html_url") or entry["run_url"]
-                if conclusion == "success":
-                    passing += 1
-                elif conclusion in {"failure", "timed_out", "action_required"}:
-                    failing += 1
-            else:
-                no_ci += 1
-        except Exception as exc:
-            entry["status"] = f"API_ERROR ({type(exc).__name__})"
+                run_info = {
+                    "workflow": run.get("name") or "CI",
+                    "conclusion": run.get("conclusion") or run.get("status") or "unknown",
+                    "last_run_utc": run.get("created_at", "N/A"),
+                    "run_url": run.get("html_url") or entry["run_url"],
+                }
+        except Exception:
+            try:
+                run_info = _fetch_ci_from_web(name)
+            except Exception as web_exc:
+                entry["status"] = f"ERROR ({type(web_exc).__name__})"
+
+        if run_info:
+            conclusion = run_info["conclusion"].lower()
+            entry["workflow"] = run_info["workflow"]
+            entry["status"] = conclusion.upper()
+            entry["last_run_utc"] = run_info["last_run_utc"]
+            entry["run_url"] = run_info["run_url"]
+            if conclusion == "success":
+                passing += 1
+            elif conclusion in {"failure", "timed_out", "action_required"}:
+                failing += 1
+        elif entry["status"] == "NO_WORKFLOW_RUNS":
+            no_ci += 1
+
         results.append(entry)
 
     ci_enabled = passing + failing
@@ -253,8 +356,8 @@ def run_day_1_ci_health(utc_now: datetime, ist_now: datetime) -> str:
 
 
 def run_day_2_repo_metrics(utc_now: datetime, ist_now: datetime) -> str:
-    """Day 2 (Tue): Aggregate live portfolio metrics, language mix, and recent pushes."""
-    user = github_api_get(f"/users/{GITHUB_USER}")
+    """Day 2: Aggregate live portfolio metrics, language mix, and recent pushes."""
+    user = _fetch_user_profile()
     repos = fetch_all_repos()
     portfolio = [r for r in repos if r["name"] != GITHUB_USER]
 
@@ -391,15 +494,22 @@ def run_day_4_toolchain_audit(utc_now: datetime, ist_now: datetime) -> str:
 
     for repo in embedded:
         name = repo["name"]
+        branch = repo.get("default_branch", "main")
         try:
             items = github_api_get(f"/repos/{GITHUB_USER}/{name}/contents/.github/workflows")
         except Exception:
-            rows.append((name, "None", "N/A", "N/A", "ℹ️ No workflow files"))
-            continue
+            items = [
+                {
+                    "name": wf_name,
+                    "download_url": f"https://raw.githubusercontent.com/{GITHUB_USER}/{name}/{branch}/.github/workflows/{wf_name}",
+                }
+                for wf_name in ("ci.yml", "c-build.yml", "run_tests.yml")
+            ]
 
         if not isinstance(items, list):
             continue
 
+        found_any = False
         for wf in items:
             if not wf["name"].endswith((".yml", ".yaml")):
                 continue
@@ -408,9 +518,17 @@ def run_day_4_toolchain_audit(utc_now: datetime, ist_now: datetime) -> str:
                 continue
             try:
                 yaml_text = fetch_text(dl_url)
+            except urllib.error.HTTPError as exc:
+                if exc.code == 404:
+                    continue
+                rows.append((name, wf["name"], "N/A", "N/A", "⚠️ Fetch error"))
+                found_any = True
+                continue
             except Exception:
                 rows.append((name, wf["name"], "N/A", "N/A", "⚠️ Fetch error"))
+                found_any = True
                 continue
+            found_any = True
 
             runners = sorted(set(re.findall(r"runs-on:\s*([^\s#]+)", yaml_text)))
             actions = sorted(set(re.findall(r"uses:\s*([^\s#]+)", yaml_text)))
@@ -432,6 +550,9 @@ def run_day_4_toolchain_audit(utc_now: datetime, ist_now: datetime) -> str:
                 ", ".join(tools) or "N/A",
                 status,
             ))
+
+        if not found_any:
+            rows.append((name, "None", "N/A", "N/A", "ℹ️ No workflow files"))
 
     lines = [
         "# 🔧 CI Workflow Actions & Embedded Build Toolchain Audit",
@@ -519,14 +640,23 @@ def run_day_5_maintenance_triage(utc_now: datetime, ist_now: datetime) -> str:
 
 
 def run_day_6_weekly_snapshot(utc_now: datetime, ist_now: datetime) -> str:
-    """Day 6 (Sat): Save immutable weekly JSON snapshot and update telemetry/README.md."""
+    """Day 6: Save immutable weekly JSON snapshot and update telemetry/README.md."""
     iso_year, iso_week, _ = ist_now.isocalendar()
     week_id = f"{iso_year}-W{iso_week:02d}"
 
-    user = github_api_get(f"/users/{GITHUB_USER}")
+    user = _fetch_user_profile()
     repos = fetch_all_repos()
     embedded = filter_embedded_repos(repos)
     _, ci_metrics = audit_embedded_ci(embedded)
+
+    total_kb = sum(int(r.get("size") or 0) for r in repos if r["name"] != GITHUB_USER)
+    snapshot_file = HISTORY_DIR / f"{week_id}.json"
+    if total_kb == 0 and snapshot_file.exists():
+        try:
+            prev = json.loads(snapshot_file.read_text(encoding="utf-8"))
+            total_kb = int(prev.get("total_codebase_kb") or 0)
+        except Exception:
+            pass
 
     snapshot = {
         "week": week_id,
@@ -536,10 +666,10 @@ def run_day_6_weekly_snapshot(utc_now: datetime, ist_now: datetime) -> str:
         "followers": user.get("followers", 0),
         "total_stars": sum(int(r.get("stargazers_count") or 0) for r in repos),
         "total_forks": sum(int(r.get("forks_count") or 0) for r in repos),
-        "total_codebase_kb": sum(int(r.get("size") or 0) for r in repos if r["name"] != GITHUB_USER),
+        "total_codebase_kb": total_kb,
         "embedded_ci": ci_metrics,
     }
-    write_text_file(HISTORY_DIR / f"{week_id}.json", json.dumps(snapshot, indent=2) + "\n")
+    write_text_file(snapshot_file, json.dumps(snapshot, indent=2) + "\n")
 
     history_files = sorted(HISTORY_DIR.glob("*.json"), reverse=True) if HISTORY_DIR.exists() else []
     history_links = ", ".join(f"[`{f.stem}`](./history/{f.name})" for f in history_files[:12]) or "None yet"
@@ -553,17 +683,17 @@ def run_day_6_weekly_snapshot(utc_now: datetime, ist_now: datetime) -> str:
         f"- **CI Health Rate:** `{ci_metrics['ci_health_rate']}` (`{ci_metrics['passing_ci_runs']}` passing / `{ci_metrics['failing_ci_runs']}` failing)",
         f"- **Total Public Stars / Forks:** `{snapshot['total_stars']}` ⭐ / `{snapshot['total_forks']}` 🍴",
         "",
-        "### 📅 Weekly Rotating Audit Schedule",
+        "### 📅 7-Day Rotating Audit Schedule (Anchored 25-Nov-2026)",
         "",
-        "| Day | Audit Focus | Report File |",
-        "| :--- | :--- | :--- |",
-        "| **Monday** | Live CI & Workflow Health | [`ci_health.md`](./ci_health.md) · [`ecosystem_status.json`](./ecosystem_status.json) |",
-        "| **Tuesday** | Portfolio Metrics & Language Mix | [`repo_metrics.md`](./repo_metrics.md) |",
-        "| **Wednesday** | Profile Links & Badge Health | [`link_audit.md`](./link_audit.md) |",
-        "| **Thursday** | Actions & Build Toolchain Check | [`toolchain_audit.md`](./toolchain_audit.md) |",
-        "| **Friday** | Open Issues & Repo Hygiene Triage | [`maintenance_triage.md`](./maintenance_triage.md) |",
-        "| **Saturday** | Weekly Immutable Snapshot & Index | [`README.md`](./README.md) · [`history/`](./history) |",
-        "| **Sunday** | Profile Dashboard & Badge Sync | [`../README.md`](../README.md) |",
+        "| Cycle Day | Weekday | Audit Focus | Report File |",
+        "| :--- | :--- | :--- | :--- |",
+        "| **Day 1** | Wednesday | Live CI & Workflow Health | [`ci_health.md`](./ci_health.md) · [`ecosystem_status.json`](./ecosystem_status.json) |",
+        "| **Day 2** | Thursday | Portfolio Metrics & Language Mix | [`repo_metrics.md`](./repo_metrics.md) |",
+        "| **Day 3** | Friday | Profile Links & Badge Health | [`link_audit.md`](./link_audit.md) |",
+        "| **Day 4** | Saturday | Actions & Build Toolchain Check | [`toolchain_audit.md`](./toolchain_audit.md) |",
+        "| **Day 5** | Sunday | Open Issues & Repo Hygiene Triage | [`maintenance_triage.md`](./maintenance_triage.md) |",
+        "| **Day 6** | Monday | Weekly Immutable Snapshot & Index | [`README.md`](./README.md) · [`history/`](./history) |",
+        "| **Day 7** | Tuesday | Profile Dashboard & Badge Sync | [`../README.md`](../README.md) |",
         "",
         "### 🗂️ Historical Weekly Snapshots",
         f"- {history_links}",
@@ -614,7 +744,7 @@ def parse_args() -> argparse.Namespace:
         "--day",
         type=int,
         choices=range(1, 8),
-        help="Override weekday index (1=Mon .. 7=Sun). Defaults to current IST weekday.",
+        help="Override 7-day cycle index (1..7). Defaults to days since 2026-11-25.",
     )
     parser.add_argument(
         "--all",
@@ -643,8 +773,8 @@ def main() -> int:
         write_commit_message("chore(telemetry): initialize 7-day rotating embedded ecosystem audit suite [skip ci]")
         return 0
 
-    day_num = args.day if args.day else ist_now.isoweekday()
-    print(f"Executing Day {day_num} ({ist_now.strftime('%A')}): {DAY_SCHEDULE[day_num]}")
+    day_num = args.day if args.day else get_cycle_day(ist_now)
+    print(f"Executing Cycle Day {day_num} ({ist_now.strftime('%A')}): {DAY_SCHEDULE[day_num]}")
     commit_msg = DAY_HANDLERS[day_num](utc_now, ist_now)
     write_commit_message(commit_msg)
     print(f"Audit completed for {ist_now.strftime('%Y-%m-%d %H:%M:%S IST')}")

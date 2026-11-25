@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       day:
-        description: 'Day override (1=Mon..7=Sun, or auto for current IST weekday)'
+        description: 'Cycle day override (1..7, or auto starting from 2026-11-25)'
         required: false
         default: 'auto'
 
