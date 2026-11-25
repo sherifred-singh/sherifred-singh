@@ -1,8 +1,8 @@
 # ==============================================================================
-# Daily GitHub Streak Keeper & Ecosystem Telemetry Automation
+# 7-Day Rotating GitHub Ecosystem Audit & Smart Streak Keeper
 # Engineer: Sherifred Singh <ssherifred@gmail.com>
-# Purpose: Auto-sync telemetry, bump README cache busters, and push to GitHub
-#          Runs daily at 09:00 AM IST via Windows Task Scheduler.
+# Purpose: Runs today's rotating engineering audit (Mon-Sun) only if no manual
+#          GitHub contribution is recorded yet today, preventing duplicate commits.
 # ==============================================================================
 
 $RepoDir = "E:\EMBEDDED FILE\LEARNING SOURCE\PRE\ANTIGRAVITY\NOTES\GITHUB_PORTFOLIO_PROJECTS\Sherifred123"
@@ -18,7 +18,7 @@ function Write-Log {
 
 try {
     Write-Log "----------------------------------------------------"
-    Write-Log "Starting Daily Streak Keeper execution..."
+    Write-Log "Starting 7-Day Smart Ecosystem Audit..."
 
     if (-not (Test-Path $RepoDir)) {
         Write-Log "ERROR: Repository path not found: $RepoDir"
@@ -27,7 +27,6 @@ try {
 
     Set-Location -Path $RepoDir
 
-    # Check git executable
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
         Write-Log "ERROR: 'git' is not in PATH."
         exit 1
@@ -37,32 +36,39 @@ try {
     Write-Log "Pulling origin/main..."
     & git pull --rebase origin main 2>&1 | ForEach-Object { Write-Log "  $_" }
 
-    # 2. Run telemetry and badge update script
-    Write-Log "Running scripts/update_telemetry.py..."
-    & python scripts\update_telemetry.py 2>&1 | ForEach-Object { Write-Log "  $_" }
+    # 2. Clear previous commit message file and run smart-fallback audit
+    $MsgFile = "$RepoDir\.git\TELEMETRY_COMMIT_MSG"
+    if (Test-Path $MsgFile) { Remove-Item $MsgFile -Force }
+
+    Write-Log "Running scripts/update_telemetry.py --skip-if-active..."
+    & python scripts\update_telemetry.py --skip-if-active 2>&1 | ForEach-Object { Write-Log "  $_" }
 
     # 3. Stage telemetry and README changes
     & git add telemetry/ README.md
 
-    # 4. Check if there are changes to commit
+    # 4. Commit only if staged changes exist
     $staged = & git diff --staged --name-only
     if ($staged) {
-        $todayStr = (Get-Date).ToString("MMM dd")
-        $commitMessage = "chore(telemetry): daily embedded ecosystem health check & streak keeper for $todayStr [skip ci]"
+        if (Test-Path $MsgFile) {
+            $commitMessage = (Get-Content $MsgFile -Raw).Trim()
+        } else {
+            $todayStr = (Get-Date).ToString("MMM dd")
+            $commitMessage = "chore(telemetry): embedded ecosystem audit for $todayStr [skip ci]"
+        }
         Write-Log "Staged changes in: $($staged -join ', ')"
         Write-Log "Committing: $commitMessage"
 
         & git commit -m "$commitMessage" --author="Sherifred singh <ssherifred@gmail.com>" 2>&1 | ForEach-Object { Write-Log "  $_" }
         & git push origin main 2>&1 | ForEach-Object { Write-Log "  $_" }
 
-        Write-Log "SUCCESS: Streak and telemetry successfully pushed to GitHub!"
+        Write-Log "SUCCESS: Ecosystem audit successfully pushed to GitHub!"
     } else {
-        Write-Log "INFO: Telemetry and streak are already up to date for today. No push needed."
+        Write-Log "INFO: Contribution already active today or no report delta. Skipping push."
     }
 }
 catch {
     Write-Log "ERROR: Exception caught: $($_.Exception.Message)"
 }
 finally {
-    Write-Log "Daily Streak Keeper finished."
+    Write-Log "Smart Ecosystem Audit finished."
 }

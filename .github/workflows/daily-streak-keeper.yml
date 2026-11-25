@@ -1,20 +1,23 @@
-name: Daily Embedded Ecosystem Telemetry & Streak Keeper
+name: 7-Day Embedded Ecosystem Audit & Smart Streak Keeper
 
 on:
   schedule:
-    # Early Morning Buffer: 02:23 UTC = 07:53 AM IST (absorbs GitHub runner queue delay)
-    - cron: '23 2 * * *'
-    # Morning Trigger: 03:17 UTC = 08:47 AM IST
+    # Morning Check: 03:17 UTC = 08:47 AM IST (UTC and IST share the same date)
     - cron: '17 3 * * *'
-    # Evening Backup: 11:43 UTC = 05:13 PM IST
+    # Evening Fallback: 11:43 UTC = 05:13 PM IST (only commits if no activity recorded today)
     - cron: '43 11 * * *'
   workflow_dispatch:
+    inputs:
+      day:
+        description: 'Day override (1=Mon..7=Sun, or auto for current IST weekday)'
+        required: false
+        default: 'auto'
 
 permissions:
   contents: write
 
 jobs:
-  telemetry-sync:
+  ecosystem-audit:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Profile Repository
@@ -27,18 +30,31 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Run Telemetry Audit
+      - name: Run Rotating Ecosystem Audit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python scripts/update_telemetry.py
+          rm -f .git/TELEMETRY_COMMIT_MSG
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            python scripts/update_telemetry.py --skip-if-active
+          elif [ "${{ inputs.day }}" != "auto" ] && [ -n "${{ inputs.day }}" ]; then
+            python scripts/update_telemetry.py --day "${{ inputs.day }}"
+          else
+            python scripts/update_telemetry.py
+          fi
 
-      - name: Commit and Push Daily Telemetry Update
+      - name: Commit and Push Audit Report
         run: |
           git config --global user.name "Sherifred singh"
           git config --global user.email "ssherifred@gmail.com"
           git add telemetry/ README.md
           if git diff --staged --quiet; then
-            echo "Telemetry is already up to date for today."
+            echo "No changes to commit (already active today or report unchanged)."
           else
-            git commit -m "chore(telemetry): daily embedded ecosystem health check [skip ci]" --author="Sherifred singh <ssherifred@gmail.com>"
+            if [ -f .git/TELEMETRY_COMMIT_MSG ]; then
+              git commit -F .git/TELEMETRY_COMMIT_MSG --author="Sherifred singh <ssherifred@gmail.com>"
+            else
+              git commit -m "chore(telemetry): weekly embedded ecosystem audit [skip ci]" --author="Sherifred singh <ssherifred@gmail.com>"
+            fi
             git push origin main
           fi

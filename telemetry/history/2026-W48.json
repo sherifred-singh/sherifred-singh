@@ -1,0 +1,18 @@
+{
+  "week": "2026-W48",
+  "recorded_utc": "2026-11-25 12:20:53 UTC",
+  "recorded_ist": "2026-11-25 05:50:53 PM IST",
+  "public_repos": 22,
+  "followers": 2,
+  "total_stars": 3,
+  "total_forks": 3,
+  "total_codebase_kb": 4765,
+  "embedded_ci": {
+    "total_repositories": 16,
+    "ci_enabled_repositories": 16,
+    "passing_ci_runs": 16,
+    "failing_ci_runs": 0,
+    "repositories_without_ci": 0,
+    "ci_health_rate": "100.0%"
+  }
+}

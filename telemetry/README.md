@@ -1,25 +1,25 @@
-# 📡 Embedded Firmware Ecosystem Telemetry
+# 📡 Embedded Firmware Ecosystem Telemetry (7-Day Rotating Audit)
 
-**Last Automated Verification:** `25-Nov-2026 04:57:55 PM IST` (`2026-11-25 11:27:55 UTC`)
-
+**Last Automated Verification:** `25-Nov-2026 05:50:53 PM IST` (`2026-11-25 12:20:53 UTC`)
 - **Engineer:** [Sherifred Singh](https://github.com/sherifred-singh)
-- **Ecosystem Health:** `ALL SYSTEMS OPERATIONAL (100% GREEN)`
-- **Monitored Repositories:** `14`
-- **Failing CI Workflows:** `0` (Health: `100.0%`)
+- **Embedded Repositories Audited:** `16`
+- **CI Health Rate:** `100.0%` (`16` passing / `0` failing)
+- **Total Public Stars / Forks:** `3` ⭐ / `3` 🍴
 
-### 🛡️ Core Production Repositories Health
+### 📅 Weekly Rotating Audit Schedule
 
-| Repository | Domain / Focus | Health Status |
+| Day | Audit Focus | Report File |
 | :--- | :--- | :--- |
-| [`embedded-nvm-fault-logger`](https://github.com/sherifred-singh/embedded-nvm-fault-logger) | Storage / Integrity | ✅ `VERIFIED_PASSING` |
-| [`stm32-esp32-industrial-edge-controller`](https://github.com/sherifred-singh/stm32-esp32-industrial-edge-controller) | Dual-MCU / Gateway | ✅ `VERIFIED_PASSING` |
-| [`stm32-automotive-uds-isotp-node`](https://github.com/sherifred-singh/stm32-automotive-uds-isotp-node) | Automotive / ISO-14229 | ✅ `VERIFIED_PASSING` |
-| [`stm32-dsp-vibration-spectral-analyzer`](https://github.com/sherifred-singh/stm32-dsp-vibration-spectral-analyzer) | DSP / FFT Engine | ✅ `VERIFIED_PASSING` |
-| [`stm32-failsafe-iap-bootloader`](https://github.com/sherifred-singh/stm32-failsafe-iap-bootloader) | Bootloader / Safety | ✅ `VERIFIED_PASSING` |
-| [`pytest-bms-diagnostic-framework`](https://github.com/sherifred-singh/pytest-bms-diagnostic-framework) | Test Automation / HIL | ✅ `VERIFIED_PASSING` |
-| [`embedded-c-ring-buffer`](https://github.com/sherifred-singh/embedded-c-ring-buffer) | Core Data Structures | ✅ `VERIFIED_PASSING` |
-| [`embedded-fsm-engine`](https://github.com/sherifred-singh/embedded-fsm-engine) | State Machine Framework | ✅ `VERIFIED_PASSING` |
-| [`embedded-software-timer`](https://github.com/sherifred-singh/embedded-software-timer) | Timing & Schedulers | ✅ `VERIFIED_PASSING` |
+| **Monday** | Live CI & Workflow Health | [`ci_health.md`](./ci_health.md) · [`ecosystem_status.json`](./ecosystem_status.json) |
+| **Tuesday** | Portfolio Metrics & Language Mix | [`repo_metrics.md`](./repo_metrics.md) |
+| **Wednesday** | Profile Links & Badge Health | [`link_audit.md`](./link_audit.md) |
+| **Thursday** | Actions & Build Toolchain Check | [`toolchain_audit.md`](./toolchain_audit.md) |
+| **Friday** | Open Issues & Repo Hygiene Triage | [`maintenance_triage.md`](./maintenance_triage.md) |
+| **Saturday** | Weekly Immutable Snapshot & Index | [`README.md`](./README.md) · [`history/`](./history) |
+| **Sunday** | Profile Dashboard & Badge Sync | [`../README.md`](../README.md) |
+
+### 🗂️ Historical Weekly Snapshots
+- [`2026-W48`](./history/2026-W48.json)
 
 ---
-*Auto-generated daily by GitHub Actions cron scheduler at 09:00 AM IST to maintain live ecosystem verification and GitHub contribution continuity.*
+*Automated smart-fallback scheduler: executes only when no manual repository activity is recorded for the day, capping automated commits at max 1/day.*
