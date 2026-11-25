@@ -50,14 +50,15 @@ def get_ist_utc_now() -> tuple[datetime, datetime]:
     return utc_now, utc_now.astimezone(ist_tz)
 
 
-def _github_headers() -> dict[str, str]:
+def _github_headers(include_auth: bool = True) -> dict[str, str]:
     headers = {
         "User-Agent": "Sherifred-Ecosystem-Auditor/2.0",
         "Accept": "application/vnd.github+json",
     }
-    token = os.environ.get("GITHUB_TOKEN", "").strip()
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
+    if include_auth:
+        token = (os.environ.get("PORTFOLIO_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
     return headers
 
 
@@ -65,13 +66,24 @@ _API_CACHE: dict[str, Any] = {}
 
 
 def github_api_get(endpoint: str, timeout: int = 15) -> Any:
-    """Fetch JSON from a GitHub REST API endpoint or full URL with in-process caching."""
+    """Fetch JSON from GitHub REST API, falling back to unauthenticated if token is repo-scoped."""
     url = endpoint if endpoint.startswith("http") else f"https://api.github.com{endpoint}"
     if url in _API_CACHE:
         return _API_CACHE[url]
-    req = urllib.request.Request(url, headers=_github_headers())
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
+
+    headers = _github_headers(include_auth=True)
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        if "Authorization" in headers and exc.code in {401, 403, 404}:
+            unauth_req = urllib.request.Request(url, headers=_github_headers(include_auth=False))
+            with urllib.request.urlopen(unauth_req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+        else:
+            raise
+
     _API_CACHE[url] = data
     return data
 

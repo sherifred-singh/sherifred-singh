@@ -31,8 +31,6 @@ jobs:
           python-version: '3.11'
 
       - name: Run Rotating Ecosystem Audit
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           rm -f .git/TELEMETRY_COMMIT_MSG
           if [ "${{ github.event_name }}" = "schedule" ]; then
