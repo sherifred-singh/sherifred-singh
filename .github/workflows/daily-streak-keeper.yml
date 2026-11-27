@@ -2,16 +2,20 @@ name: 7-Day Embedded Ecosystem Audit & Smart Streak Keeper
 
 on:
   schedule:
-    # Morning Check: 03:17 UTC = 08:47 AM IST (UTC and IST share the same date)
+    # Morning Check: 03:17 UTC = 08:47 AM IST
     - cron: '17 3 * * *'
-    # Evening Fallback: 11:43 UTC = 05:13 PM IST (only commits if no activity recorded today)
+    # Evening Backup: 11:43 UTC = 05:13 PM IST
     - cron: '43 11 * * *'
   workflow_dispatch:
     inputs:
       day:
-        description: 'Cycle day override (1..7, or auto starting from 2026-11-25)'
+        description: 'Cycle day override (1..7, or auto)'
         required: false
         default: 'auto'
+      commits:
+        description: 'Number of commits override (1..5, or random)'
+        required: false
+        default: 'random'
 
 permissions:
   contents: write
@@ -30,29 +34,21 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Run Rotating Ecosystem Audit
-        run: |
-          rm -f .git/TELEMETRY_COMMIT_MSG
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            python scripts/update_telemetry.py --skip-if-active
-          elif [ "${{ inputs.day }}" != "auto" ] && [ -n "${{ inputs.day }}" ]; then
-            python scripts/update_telemetry.py --day "${{ inputs.day }}"
-          else
-            python scripts/update_telemetry.py
-          fi
-
-      - name: Commit and Push Audit Report
+      - name: Configure Git Author
         run: |
           git config --global user.name "Sherifred singh"
           git config --global user.email "ssherifred@gmail.com"
-          git add telemetry/ README.md
-          if git diff --staged --quiet; then
-            echo "No changes to commit (already active today or report unchanged)."
-          else
-            if [ -f .git/TELEMETRY_COMMIT_MSG ]; then
-              git commit -F .git/TELEMETRY_COMMIT_MSG --author="Sherifred singh <ssherifred@gmail.com>"
-            else
-              git commit -m "chore(telemetry): weekly embedded ecosystem audit [skip ci]" --author="Sherifred singh <ssherifred@gmail.com>"
-            fi
-            git push origin main
+
+      - name: Run Rotating Ecosystem Audit (Randomized 1-5 Commits)
+        run: |
+          ARGS="--commit-and-push"
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            ARGS="$ARGS --skip-if-active"
           fi
+          if [ "${{ inputs.day }}" != "auto" ] && [ -n "${{ inputs.day }}" ]; then
+            ARGS="$ARGS --day ${{ inputs.day }}"
+          fi
+          if [ "${{ inputs.commits }}" != "random" ] && [ -n "${{ inputs.commits }}" ]; then
+            ARGS="$ARGS --commits ${{ inputs.commits }}"
+          fi
+          python scripts/update_telemetry.py $ARGS

@@ -1,8 +1,8 @@
 # ==============================================================================
-# 7-Day Rotating GitHub Ecosystem Audit & Smart Streak Keeper
+# 7-Day Rotating GitHub Ecosystem Audit & Randomized Streak Keeper (1-5 Commits)
 # Engineer: Sherifred Singh <ssherifred@gmail.com>
-# Purpose: Runs today's rotating engineering audit (Mon-Sun) only if no manual
-#          GitHub contribution is recorded yet today, preventing duplicate commits.
+# Purpose: Runs today's rotating audit with randomized 1-5 commits per day,
+#          skipping only if real manual repository work was already pushed today.
 # ==============================================================================
 
 $RepoDir = "E:\EMBEDDED FILE\LEARNING SOURCE\PRE\ANTIGRAVITY\NOTES\GITHUB_PORTFOLIO_PROJECTS\Sherifred123"
@@ -18,7 +18,7 @@ function Write-Log {
 
 try {
     Write-Log "----------------------------------------------------"
-    Write-Log "Starting 7-Day Smart Ecosystem Audit..."
+    Write-Log "Starting 7-Day Randomized Ecosystem Audit (1-5 Commits)..."
 
     if (-not (Test-Path $RepoDir)) {
         Write-Log "ERROR: Repository path not found: $RepoDir"
@@ -36,39 +36,15 @@ try {
     Write-Log "Pulling origin/main..."
     & git pull --rebase origin main 2>&1 | ForEach-Object { Write-Log "  $_" }
 
-    # 2. Clear previous commit message file and run smart-fallback audit
-    $MsgFile = "$RepoDir\.git\TELEMETRY_COMMIT_MSG"
-    if (Test-Path $MsgFile) { Remove-Item $MsgFile -Force }
+    # 2. Run randomized multi-commit manager
+    Write-Log "Running scripts/update_telemetry.py --skip-if-active --commit-and-push..."
+    & python scripts\update_telemetry.py --skip-if-active --commit-and-push 2>&1 | ForEach-Object { Write-Log "  $_" }
 
-    Write-Log "Running scripts/update_telemetry.py --skip-if-active..."
-    & python scripts\update_telemetry.py --skip-if-active 2>&1 | ForEach-Object { Write-Log "  $_" }
-
-    # 3. Stage telemetry and README changes
-    & git add telemetry/ README.md
-
-    # 4. Commit only if staged changes exist
-    $staged = & git diff --staged --name-only
-    if ($staged) {
-        if (Test-Path $MsgFile) {
-            $commitMessage = (Get-Content $MsgFile -Raw).Trim()
-        } else {
-            $todayStr = (Get-Date).ToString("MMM dd")
-            $commitMessage = "chore(telemetry): embedded ecosystem audit for $todayStr [skip ci]"
-        }
-        Write-Log "Staged changes in: $($staged -join ', ')"
-        Write-Log "Committing: $commitMessage"
-
-        & git commit -m "$commitMessage" --author="Sherifred singh <ssherifred@gmail.com>" 2>&1 | ForEach-Object { Write-Log "  $_" }
-        & git push origin main 2>&1 | ForEach-Object { Write-Log "  $_" }
-
-        Write-Log "SUCCESS: Ecosystem audit successfully pushed to GitHub!"
-    } else {
-        Write-Log "INFO: Contribution already active today or no report delta. Skipping push."
-    }
+    Write-Log "SUCCESS: Daily audit manager finished successfully."
 }
 catch {
     Write-Log "ERROR: Exception caught: $($_.Exception.Message)"
 }
 finally {
-    Write-Log "Smart Ecosystem Audit finished."
+    Write-Log "Randomized Ecosystem Audit completed."
 }

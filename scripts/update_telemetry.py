@@ -6,10 +6,12 @@ that avoids duplicate automated commits on days with manual coding activity.
 """
 
 import argparse
+import hashlib
 import html as html_lib
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 import urllib.error
@@ -19,6 +21,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 GITHUB_USER = "sherifred-singh"
+AUTHOR_NAME = "Sherifred singh"
+AUTHOR_EMAIL = "ssherifred@gmail.com"
 CYCLE_ANCHOR_DATE = date(2026, 11, 25)  # Day 1 starts on 2026-11-25 (Wednesday)
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TELEMETRY_DIR = REPO_ROOT / "telemetry"
@@ -722,6 +726,217 @@ def run_day_7_profile_sync(utc_now: datetime, ist_now: datetime) -> str:
     return "docs(profile): weekly profile dashboard & streak badge sync [skip ci]"
 
 
+def get_daily_commit_target(date_str: str, min_c: int = 1, max_c: int = 5) -> int:
+    """Return a deterministic randomized daily commit target between min_c and max_c."""
+    h = int(hashlib.sha256(f"SherifredEcosystem:{date_str}".encode()).hexdigest(), 16)
+    return min_c + (h % (max_c - min_c + 1))
+
+
+def get_today_commit_messages(ist_now: datetime) -> list[str]:
+    """Retrieve commit messages made today in the local repository."""
+    today_str = ist_now.strftime("%Y-%m-%d 00:00:00")
+    try:
+        cmd = ["git", "log", f"--since={today_str}", "--format=%s"]
+        res = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, check=True)
+        return [line.strip() for line in res.stdout.strip().splitlines() if line.strip()]
+    except Exception:
+        return []
+
+
+def git_commit_file(file_path: Path, commit_msg: str) -> bool:
+    """Stage a single file relative to REPO_ROOT and commit if changes exist."""
+    rel = file_path.relative_to(REPO_ROOT) if file_path.is_absolute() else file_path
+    subprocess.run(["git", "add", str(rel)], cwd=REPO_ROOT, check=True)
+    diff = subprocess.run(["git", "diff", "--staged", "--name-only"], cwd=REPO_ROOT, capture_output=True, text=True)
+    if diff.stdout.strip():
+        subprocess.run([
+            "git", "commit",
+            "-m", commit_msg,
+            f"--author={AUTHOR_NAME} <{AUTHOR_EMAIL}>"
+        ], cwd=REPO_ROOT, check=True)
+        return True
+    return False
+
+
+def git_push_all() -> bool:
+    """Push commits on main to origin/main."""
+    res = subprocess.run(["git", "push", "origin", "main"], cwd=REPO_ROOT, capture_output=True, text=True)
+    if res.returncode == 0:
+        return True
+    print(f"git push error: {res.stderr}", file=sys.stderr)
+    return False
+
+
+def execute_task_1_rotating_audit(day_num: int, utc_now: datetime, ist_now: datetime) -> tuple[Path, str]:
+    """Task 1: Execute today's rotating 7-day audit report."""
+    commit_msg = DAY_HANDLERS[day_num](utc_now, ist_now)
+    target_files = {
+        1: TELEMETRY_DIR / "ci_health.md",
+        2: TELEMETRY_DIR / "repo_metrics.md",
+        3: TELEMETRY_DIR / "link_audit.md",
+        4: TELEMETRY_DIR / "toolchain_audit.md",
+        5: TELEMETRY_DIR / "maintenance_triage.md",
+        6: TELEMETRY_DIR / "README.md",
+        7: REPO_ROOT / "README.md",
+    }
+    return target_files.get(day_num, TELEMETRY_DIR / "README.md"), commit_msg
+
+
+def execute_task_2_ecosystem_status(utc_now: datetime, ist_now: datetime) -> tuple[Path, str]:
+    """Task 2: Update live ecosystem status JSON telemetry."""
+    repos = fetch_all_repos()
+    embedded = filter_embedded_repos(repos)
+    ci_results, metrics = audit_embedded_ci(embedded)
+    overall_status = (
+        "ALL CI WORKFLOWS PASSING"
+        if metrics["failing_ci_runs"] == 0 and metrics["passing_ci_runs"] > 0
+        else f"{metrics['failing_ci_runs']} FAILING CI WORKFLOW(S)"
+    )
+    payload = {
+        "engineer": "Sherifred Singh",
+        "profile": f"https://github.com/{GITHUB_USER}",
+        "domain": "Automotive & Safety-Critical Embedded Firmware",
+        "last_sync_utc": utc_now.strftime("%Y-%m-%d %H:%M:%S UTC"),
+        "last_sync_ist": ist_now.strftime("%Y-%m-%d %I:%M:%S %p IST"),
+        "status": overall_status,
+        "streak_shield_active": True,
+        "metrics": metrics,
+        "monitored_repositories": ci_results,
+    }
+    path = TELEMETRY_DIR / "ecosystem_status.json"
+    write_text_file(path, json.dumps(payload, indent=2) + "\n")
+    return path, "chore(telemetry): update live embedded ecosystem status & metrics [skip ci]"
+
+
+def execute_task_3_telemetry_index(utc_now: datetime, ist_now: datetime) -> tuple[Path, str]:
+    """Task 3: Update telemetry index and rotating audit summary."""
+    run_day_6_weekly_snapshot(utc_now, ist_now)
+    path = TELEMETRY_DIR / "README.md"
+    return path, "docs(telemetry): update ecosystem verification summary & schedule index [skip ci]"
+
+
+def execute_task_4_profile_badges(utc_now: datetime, ist_now: datetime) -> tuple[Path, str]:
+    """Task 4: Refresh README.md badge cache busters."""
+    readme_path = REPO_ROOT / "README.md"
+    if readme_path.exists():
+        content = readme_path.read_text(encoding="utf-8")
+        cache_buster = ist_now.strftime("%m%d%H%M")
+        updated = re.sub(r"(&v=)\d+", rf"\g<1>{cache_buster}", content)
+        if updated != content:
+            readme_path.write_text(updated, encoding="utf-8")
+    return readme_path, "chore(profile): refresh profile dashboard badge cache busters [skip ci]"
+
+
+def execute_task_5_weekly_archive(utc_now: datetime, ist_now: datetime) -> tuple[Path, str]:
+    """Task 5: Save or refresh the weekly JSON archive snapshot."""
+    iso_year, iso_week, _ = ist_now.isocalendar()
+    week_id = f"{iso_year}-W{iso_week:02d}"
+    path = HISTORY_DIR / f"{week_id}.json"
+    user = _fetch_user_profile()
+    repos = fetch_all_repos()
+    embedded = filter_embedded_repos(repos)
+    _, ci_metrics = audit_embedded_ci(embedded)
+    total_kb = sum(int(r.get("size") or 0) for r in repos if r["name"] != GITHUB_USER)
+    if total_kb == 0 and path.exists():
+        try:
+            prev = json.loads(path.read_text(encoding="utf-8"))
+            total_kb = int(prev.get("total_codebase_kb") or 0)
+        except Exception:
+            pass
+    snapshot = {
+        "week": week_id,
+        "recorded_utc": utc_now.strftime("%Y-%m-%d %H:%M:%S UTC"),
+        "recorded_ist": ist_now.strftime("%Y-%m-%d %I:%M:%S %p IST"),
+        "public_repos": user.get("public_repos", len(repos)),
+        "followers": user.get("followers", 0),
+        "total_stars": sum(int(r.get("stargazers_count") or 0) for r in repos),
+        "total_forks": sum(int(r.get("forks_count") or 0) for r in repos),
+        "total_codebase_kb": total_kb,
+        "embedded_ci": ci_metrics,
+    }
+    write_text_file(path, json.dumps(snapshot, indent=2) + "\n")
+    return path, "chore(archive): sync weekly telemetry snapshot & history log [skip ci]"
+
+
+def run_daily_randomized_commits(day_num: int, target_commits: int, commit_and_push: bool) -> int:
+    """Coordinate executing and committing tasks to reach target_commits for the day."""
+    utc_now, ist_now = get_ist_utc_now()
+    existing_msgs = get_today_commit_messages(ist_now)
+    current_count = len(existing_msgs)
+
+    print(f"--- Randomized Daily Commit Manager ---")
+    print(f"Date: {ist_now.strftime('%Y-%m-%d (%A)')}")
+    print(f"Target commits for today: {target_commits}")
+    print(f"Existing commits today: {current_count}")
+
+    if current_count >= target_commits:
+        print(f"Goal of {target_commits} commit(s) already satisfied ({current_count} committed). Skipping.")
+        return 0
+
+    needed = target_commits - current_count
+    print(f"Need {needed} more commit(s) to reach today's target.")
+
+    task_pipeline = [
+        (
+            "Task 1 (Daily Focus)",
+            lambda: any(re.search(r"chore\((ci-audit|audit|toolchain|archive)\)|docs\((telemetry|maintenance|profile)\)", m) for m in existing_msgs),
+            lambda: execute_task_1_rotating_audit(day_num, utc_now, ist_now),
+        ),
+        (
+            "Task 2 (Ecosystem Status JSON)",
+            lambda: any("chore(telemetry): update live embedded ecosystem status" in m for m in existing_msgs),
+            lambda: execute_task_2_ecosystem_status(utc_now, ist_now),
+        ),
+        (
+            "Task 3 (Telemetry Overview README)",
+            lambda: any("docs(telemetry): update ecosystem verification summary" in m for m in existing_msgs),
+            lambda: execute_task_3_telemetry_index(utc_now, ist_now),
+        ),
+        (
+            "Task 4 (Profile Badges Cache)",
+            lambda: any("chore(profile): refresh profile dashboard badge cache" in m for m in existing_msgs),
+            lambda: execute_task_4_profile_badges(utc_now, ist_now),
+        ),
+        (
+            "Task 5 (Weekly Snapshot Archive)",
+            lambda: any("chore(archive): sync weekly telemetry snapshot" in m for m in existing_msgs),
+            lambda: execute_task_5_weekly_archive(utc_now, ist_now),
+        ),
+    ]
+
+    commits_made = 0
+    for name, is_done, task_fn in task_pipeline:
+        if commits_made >= needed:
+            break
+        if is_done():
+            print(f"  [Skipped] {name} already committed today.")
+            continue
+
+        print(f"  [Executing] {name}...")
+        file_path, commit_msg = task_fn()
+        if commit_and_push:
+            ok = git_commit_file(file_path, commit_msg)
+            if ok:
+                commits_made += 1
+                existing_msgs.append(commit_msg)
+                print(f"  [Committed] -> {commit_msg}")
+            else:
+                print(f"  [No changes] -> {file_path.name} was already up to date.")
+        else:
+            print(f"  [Dry Run] Updated {file_path.name} (would commit: {commit_msg})")
+            commits_made += 1
+
+    if commit_and_push and commits_made > 0:
+        print(f"Pushing {commits_made} new commit(s) to origin/main...")
+        if git_push_all():
+            print(f"Successfully pushed! Today total commits: {current_count + commits_made}/{target_commits}")
+        else:
+            print("Failed to push to origin/main", file=sys.stderr)
+            return 1
+
+    return 0
+
+
 DAY_HANDLERS: dict[int, Callable[[datetime, datetime], str]] = {
     1: run_day_1_ci_health,
     2: run_day_2_repo_metrics,
@@ -734,17 +949,40 @@ DAY_HANDLERS: dict[int, Callable[[datetime, datetime], str]] = {
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="7-day rotating embedded ecosystem audit")
+    parser = argparse.ArgumentParser(description="7-day rotating embedded ecosystem audit with randomized 1-5 commits")
     parser.add_argument(
         "--skip-if-active",
         action="store_true",
-        help="Skip execution if a GitHub contribution is already recorded today (UTC).",
+        help="Skip execution if manual repository pushes already occurred today.",
     )
     parser.add_argument(
         "--day",
         type=int,
         choices=range(1, 8),
         help="Override 7-day cycle index (1..7). Defaults to days since 2026-11-25.",
+    )
+    parser.add_argument(
+        "--commits",
+        type=int,
+        choices=range(1, 6),
+        help="Override number of commits for today (1..5). Defaults to deterministic daily random.",
+    )
+    parser.add_argument(
+        "--min-commits",
+        type=int,
+        default=1,
+        help="Minimum randomized commits per day (default: 1).",
+    )
+    parser.add_argument(
+        "--max-commits",
+        type=int,
+        default=5,
+        help="Maximum randomized commits per day (default: 5).",
+    )
+    parser.add_argument(
+        "--commit-and-push",
+        action="store_true",
+        help="Automatically commit and push the randomized tasks to origin/main.",
     )
     parser.add_argument(
         "--all",
@@ -757,12 +995,14 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     utc_now, ist_now = get_ist_utc_now()
+    today_date_str = ist_now.strftime("%Y-%m-%d")
 
-    if args.skip_if_active and not args.all and not args.day:
+    # Smart fallback: skip automated streak only if real manual repository work was done elsewhere today
+    if args.skip_if_active and not args.all:
         active, reason = has_contributed_today(utc_now)
-        print(f"Smart-fallback check: {reason}")
-        if active:
-            print("Skipping automated audit to avoid redundant commits.")
+        if "Repository push already recorded today" in reason:
+            print(f"Smart-fallback check: {reason}")
+            print("Manual repository activity detected. Skipping automated commits today to highlight real work.")
             return 0
 
     if args.all:
@@ -774,12 +1014,9 @@ def main() -> int:
         return 0
 
     day_num = args.day if args.day else get_cycle_day(ist_now)
-    print(f"Executing Cycle Day {day_num} ({ist_now.strftime('%A')}): {DAY_SCHEDULE[day_num]}")
-    commit_msg = DAY_HANDLERS[day_num](utc_now, ist_now)
-    write_commit_message(commit_msg)
-    print(f"Audit completed for {ist_now.strftime('%Y-%m-%d %H:%M:%S IST')}")
-    print(f"Suggested commit message: {commit_msg}")
-    return 0
+    target_commits = args.commits if args.commits else get_daily_commit_target(today_date_str, args.min_commits, args.max_commits)
+
+    return run_daily_randomized_commits(day_num, target_commits, args.commit_and_push)
 
 
 if __name__ == "__main__":
