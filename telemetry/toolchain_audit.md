@@ -1,6 +1,6 @@
 # 🔧 CI Workflow Actions & Embedded Build Toolchain Audit
 
-**Audit Timestamp:** `28-Nov-2026 01:48:47 AM IST` (`2026-11-27 20:18:47 UTC`)
+**Audit Timestamp:** `28-Nov-2026 05:22:10 PM IST` (`2026-11-28 11:52:10 UTC`)
 - **Workflow Files Inspected:** `17`
 - **Legacy Action Version Flags (`@v1/@v2/@v3`):** `1`
 
